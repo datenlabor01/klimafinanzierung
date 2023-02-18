@@ -18,7 +18,7 @@ ressort_dropdown = dcc.Dropdown(options=sorted(dat['Ressort'].unique()),
                              value='All', style={"textAlign": "center"}, clearable=False, multi=True, placeholder='Alle Ressorts')
 
 #Dropdown for Country:
-country_dropdown = dcc.Dropdown(options=dat['Recipient'].unique(),
+country_dropdown = dcc.Dropdown(options=sorted(dat['Recipient'].unique()),
                                 value="All", style = {"textAlign": "center"}, clearable=False,
                                 searchable= True, placeholder='Alle Empfänger')
 #App Layout: 
@@ -101,9 +101,9 @@ app.layout = dbc.Container([
          ]),
     ])
 
-#Funktion um nur Länder anzuzeigen, die in gewählter Kategorie sind:
+#Show only type of support in selection:
 @app.callback(
-    [Output("typesupport_slider", "marks"), Output("typesupport_slider", "max")],
+    [Output("typesupport_slider", "marks"), Output("typesupport_slider", "max"), Output("typesupport_slider", 'value')],
     [Input(year_dropdown, 'value'), Input(ressort_dropdown, 'value')],
 )
 
@@ -124,7 +124,8 @@ def support_options(selected_year, ressort_dropdown):
    #Set marks based on available values in filtered dataframe and max:
    marks_slider = {i: slider_txt[i] for i in range(0,  len(slider_txt))}
    max_slider = len(slider_txt)-1
-   return marks_slider, max_slider
+   slider_value = 0
+   return marks_slider, max_slider, slider_value
    
 #First callback-function for graphs only dependent on year-dropdown and slider:
 @app.callback(
@@ -146,6 +147,7 @@ def update_graph_1(selected_year, ressort_dropdown, typesupport_slider):
       dat_fil = dat_fil
    else:
       slider_txt = dat_fil["TypeOfSupport"].unique()
+      print(slider_txt[typesupport_slider-1])
       dat_fil = dat_fil[dat_fil["TypeOfSupport"] == slider_txt[typesupport_slider-1]]
 
    #Prepare data for map and display it:
@@ -184,7 +186,7 @@ def update_graph_1(selected_year, ressort_dropdown, typesupport_slider):
 
    return (figMap, figTree, figBarTop, figMultiBar)
 
-#Second callback for country-dropdown:
+#callback for country options:
 @app.callback(
     [Output("pie", "figure"), Output("number_projects", "children"), Output("sum_projects", "children"), Output(my_table, "data")],
     [Input(country_dropdown, "value")]

@@ -36,22 +36,23 @@ df_bilateral = pd.concat([df_bilateral21, df_bilateral22])
 df_multilateral = pd.concat([df_multilateral21, df_multilateral22])
 df_mobilised = pd.concat([df_mobilised22, df_mobilised21])
 
+#Delete mobilised projects in df_bilateral frame via substring:
+df_bilateral = df_bilateral[~df_bilateral["AdditionalInformation"].str.contains("project also included in")]
+
 #Set climate finance to relevant columns:
 df_bilateral["Klimafinanzierung"] = df_bilateral["CommittedAmount"]
 df_multilateral["Klimafinanzierung"] = df_multilateral["ProvidedClimateSpecific"]
-df_mobilised["Klimafinanzierung"] = df_mobilised["ResourcesUsedToMobiliseSupport"]
+df_mobilised["Klimafinanzierung"] = df_mobilised["AmountMobilised"]
+#df_mobilised["Klimafinanzierung"] = df_mobilised["ResourcesUsedToMobiliseSupport"]
 
 #Change bilateral BMU projects to provided amount instead of commited amount:
 project_list =  pd.read_excel("project_list.xlsx")
 projects = list(project_list.iloc[:,0])
 df_bilateral.loc[df_bilateral.Title.isin(projects), "Klimafinanzierung"] = df_bilateral.loc[df_bilateral.Title.isin(projects), "ProvidedAmount"]
 
-#Align multilateral data to other two frames:
+#Align multilateral and mobilised data to other two frames:
 df_multilateral["Recipient"] = df_multilateral["MultilateralInstitution"]
 df_multilateral["Ressort"] = "Multilateral"
-
-#Delete duplicate projects in mobilised frame via substring:
-df_mobilised = df_mobilised[~df_mobilised["AdditionalInformation"].str.contains("project also included in table 1")]
 df_mobilised["Ressort"] = df_mobilised["AdditionalInformation"]
 df_mobilised["FinancialInstrument"] = df_mobilised["TypeOfPublicIntervention"]
 
@@ -143,4 +144,4 @@ dat_gesamt.loc[dat_gesamt["Recipient"] == "Chile", "Kontinent"] = "Amerika"
 #Add "nicht aufteilbar" for recipients without assigned region and continent: 
 dat_gesamt.loc[dat_gesamt["Region"].isna() == True, ["Region", "Kontinent"]] = "Nicht aufteilbar"
 
-dat_gesamt.to_csv('klifi_deu.csv', index = False, sep = ";")
+dat_gesamt.to_csv('klifi_deu.csv', index = False, sep = ";") 

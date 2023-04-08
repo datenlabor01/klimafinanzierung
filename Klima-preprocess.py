@@ -1,5 +1,5 @@
 import pandas as pd
-import plotly.express as px
+import re
 
 #Read-in data:
 df_bilateral22 = pd.read_excel("KlifiDEU2022.xlsx", sheet_name = "Annex III Table 1", header = 17)
@@ -36,14 +36,19 @@ df_bilateral = pd.concat([df_bilateral21, df_bilateral22])
 df_multilateral = pd.concat([df_multilateral21, df_multilateral22])
 df_mobilised = pd.concat([df_mobilised22, df_mobilised21])
 
-#Delete mobilised projects in df_bilateral frame via substring:
-df_bilateral = df_bilateral[~df_bilateral["AdditionalInformation"].str.contains("project also included in")]
-
 #Set climate finance to relevant columns:
 df_bilateral["Klimafinanzierung"] = df_bilateral["CommittedAmount"]
+bol = df_bilateral["AdditionalInformation"].str.contains("German Energy and Climate Fund")
+df_bilateral.loc[bol == True, "Klimafinanzierung"] = df_bilateral.loc[bol == True, "ProvidedAmount"]
+
 df_multilateral["Klimafinanzierung"] = df_multilateral["ProvidedClimateSpecific"]
 df_mobilised["Klimafinanzierung"] = df_mobilised["AmountMobilised"]
-#df_mobilised["Klimafinanzierung"] = df_mobilised["ResourcesUsedToMobiliseSupport"]
+
+#Create category for distinction between mobilised private, budgetary resources and mobilised public:
+df_bilateral["Haushalt"] = "Haushaltsmittel"
+df_bilateral.loc[df_bilateral["AdditionalInformation"].str.contains("project also included in") == True, "Haushalt"] = "Mobilisierte öffentliche Klimafinanzierung"
+df_multilateral["Haushalt"] = "Haushaltsmittel"
+df_mobilised["Haushalt"] = "Mobilisierte private Klimafinanzierung"
 
 #Change bilateral BMU projects to provided amount instead of commited amount:
 project_list =  pd.read_excel("project_list.xlsx")
@@ -59,7 +64,7 @@ df_mobilised["FinancialInstrument"] = df_mobilised["TypeOfPublicIntervention"]
 #Add channel description:
 df_multilateral["Channel"] = "Multilateral"
 df_bilateral["Channel"] = "Bilateral"
-df_mobilised["Channel"] = "Mobilisation"
+df_mobilised["Channel"] = "Mobilisiert"
 
 #Read-in mapping table for region and continent:
 keys_country = pd.read_excel("Country Mapping.xlsx")
@@ -67,6 +72,8 @@ keys_country = pd.read_excel("Country Mapping.xlsx")
 keys_reg = dict(zip(keys_country["Recipient name (EN)"], keys_country["Region"]))
 keys_con = dict(zip(keys_country["Recipient name (EN)"], keys_country["Continent"]))
 keys_rec = dict(zip(keys_country["Recipient name (EN)"], keys_country["Recipient Name deutsch"]))
+keys_con_eng = dict(zip(keys_country["Recipient name (EN)"], keys_country["CONTINENT"]))
+keys_iso = dict(zip(keys_country["Recipient name (EN)"], keys_country["ISOcode"]))
 
 #Split-up column to obtain ressort:
 df_zusatz = df_bilateral["AdditionalInformation"].str.split(',', expand=True)
@@ -79,15 +86,34 @@ df_melder["Ressort"] = df_melder["Ressort"].str.rstrip()
 df_melder["Durchführungsorganisation"] = df_melder[1]
 df_bilateral["Ressort"] = df_melder["Ressort"]
 
-#Für Erhalten der  FBS (drei-ziffrig) für Mappen auf deutsche Bezeichnung:
-#df_subsector = df_bilateral["Sector"].str.split('(', expand=True)
-#df_subsector[1] = df_subsector[1].str.replace(r')', '')
-#df_subsector["FBSCode"] = df_subsector[1]
-#df_bilateral_sort["FBS Sektorcode"] = df_bilateral_sort["FBS Code"].astype(str).str[:3]
-
 #Build main dataframe:
-dat_gesamt = pd.concat([df_bilateral, df_multilateral, df_mobilised], join = "inner")
-dat_gesamt = dat_gesamt.reset_index()
+dat_gesamt = pd.concat([df_bilateral, df_multilateral, df_mobilised], join = "inner").reset_index()
+
+#For German description of purpose codes:
+#Read-in mapping table:
+keys_codes = pd.read_excel("Purpose Codes Mapping.xlsx")
+#Delete empty entries to avoid false mapping:
+keys_codes = keys_codes[keys_codes['DAC 5'].notna()]
+keys_purpose = dict(zip(keys_codes["DAC 5"].astype(str), keys_codes["Beschreibung"]))
+#Apply mapping to purpose code between first brackets:
+df_subsector = dat_gesamt["Sector"].str.extract('.*\((.*)\).*')
+df_subsector["Sector"] = df_subsector[0].astype(str).map(keys_purpose)
+dat_gesamt.loc[df_subsector["Sector"].isna() == False, "Sector"] = df_subsector.loc[df_subsector["Sector"].isna() == False, "Sector"]
+#Delete trailing whitespace:
+dat_gesamt["Sector"] = dat_gesamt["Sector"].str.rstrip()
+#Align terminology:
+dat_gesamt.loc[dat_gesamt["Sector"] == "not applicable", "Sector"] = "Andere"
+dat_gesamt.loc[dat_gesamt["Sector"] == "Not applicable", "Sector"] = "Andere"
+dat_gesamt.loc[dat_gesamt["Sector"] == "not available", "Sector"] = "Andere"
+dat_gesamt.loc[dat_gesamt["Sector"].isna() == True, "Sector"] = "Andere"
+
+#Simpliy and translate instrument categories:
+dat_gesamt.loc[dat_gesamt.FinancialInstrument == "grant", "FinancialInstrument"] = "Zuschuss"
+dat_gesamt.loc[dat_gesamt.FinancialInstrument == "Grant", "FinancialInstrument"] = "Zuschuss"
+dat_gesamt.loc[dat_gesamt.FinancialInstrument == "concessional loan", "FinancialInstrument"] = "Darlehen"
+dat_gesamt.loc[dat_gesamt.FinancialInstrument == "concessional loan from budgetary sources", "FinancialInstrument"] = "Darlehen"
+dat_gesamt.loc[dat_gesamt.FinancialInstrument == "composite loan", "FinancialInstrument"] = "Darlehen"
+dat_gesamt.loc[dat_gesamt.FinancialInstrument == "grant equivalent of concessional loan", "FinancialInstrument"] = "Darlehen"
 
 #Align ressort names to each other and shorten:
 dat_gesamt.loc[dat_gesamt["Ressort"].str.contains("Deutsche Investitions- und Entwicklungsgesellschaft"), "Ressort"] = "DEG"
@@ -133,6 +159,9 @@ dat_gesamt.loc[dat_gesamt["Recipient"] == "Americas, regional", "Recipient"] = "
 dat_gesamt["Recipient Deutsch"] = dat_gesamt["Recipient"].map(keys_rec)
 dat_gesamt["Region"] = dat_gesamt["Recipient"].map(keys_reg)
 dat_gesamt["Kontinent"] = dat_gesamt["Recipient"].map(keys_con)
+dat_gesamt["CONTINENT"] = dat_gesamt["Recipient"].map(keys_con_eng)
+dat_gesamt["ISOCode"] = dat_gesamt["Recipient"].map(keys_iso)
+
 dat_gesamt.loc[dat_gesamt["Recipient Deutsch"].isna() == True, "Recipient Deutsch"] = dat_gesamt.loc[dat_gesamt["Recipient Deutsch"].isna() == True, "Recipient"]
 
 #Add region and continent for Israel and Chile as they are not on OECD list:
@@ -144,4 +173,4 @@ dat_gesamt.loc[dat_gesamt["Recipient"] == "Chile", "Kontinent"] = "Amerika"
 #Add "nicht aufteilbar" for recipients without assigned region and continent: 
 dat_gesamt.loc[dat_gesamt["Region"].isna() == True, ["Region", "Kontinent"]] = "Nicht aufteilbar"
 
-dat_gesamt.to_csv('klifi_deu.csv', index = False, sep = ";") 
+dat_gesamt.to_csv('klifi_deu.csv', sep = ";", index = False) 

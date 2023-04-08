@@ -109,7 +109,10 @@ dat_gesamt.loc[dat_gesamt["Sector"].isna() == True, "Sector"] = "Andere"
 
 #Simpliy and translate instrument categories:
 dat_gesamt.loc[dat_gesamt.FinancialInstrument == "grant", "FinancialInstrument"] = "Zuschuss"
+bol = dat_gesamt["AdditionalInformation"].str.contains("interest subsidies for development loans of KfW (budgetary sources)")
+dat_gesamt.loc[bol == True, "FinancialInstrument"] = "Zinssubvention für Darlehen"
 dat_gesamt.loc[dat_gesamt.FinancialInstrument == "Grant", "FinancialInstrument"] = "Zuschuss"
+
 dat_gesamt.loc[dat_gesamt.FinancialInstrument == "concessional loan", "FinancialInstrument"] = "Darlehen"
 dat_gesamt.loc[dat_gesamt.FinancialInstrument == "concessional loan from budgetary sources", "FinancialInstrument"] = "Darlehen"
 dat_gesamt.loc[dat_gesamt.FinancialInstrument == "composite loan", "FinancialInstrument"] = "Darlehen"

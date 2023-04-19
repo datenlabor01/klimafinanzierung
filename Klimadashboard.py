@@ -7,7 +7,7 @@ import geopandas as gpd
 import numpy as np
 
 #Read in data:
-dat = pd.read_csv('klifi_deu.csv', sep= ";")
+dat = pd.read_csv('https://github.com/datenlabor01/klimafinanzierung/blob/main/klifi_deu.csv?raw=true', sep= ";")
 
 searchstring = ["BMZ", "DEG", "KfW", "Multilateral"]
 #dat = dat[dat["Ressort"].str.contains('|'.join(searchstring))]
@@ -30,7 +30,7 @@ country_dropdown = dcc.Dropdown(id = "country",
                                 value="All", style = {"textAlign": "center"}, clearable=True, multi=True,
                                 searchable= True, placeholder='Alle Empfänger')
 
-typesupport = dcc.Slider(min = 0, max = 3, step=1, 
+typesupport = dcc.Slider(min = 0, max = 3, step=1,
                          marks= {0: "Total", 1: "Adaptation", 2: "Mitigation", 3: "Cross-cutting"},
                          value = 0, included=False)
 
@@ -40,7 +40,7 @@ map_select = dcc.RadioItems(options=['Länder', 'Kontinent'], value='Länder')
 fininstrument = dcc.Dropdown(id="fininstrument",
                                 value="All", style = {"textAlign": "center"}, clearable=True, multi=True,
                                 placeholder='Alle Instrumente')
-#App Layout: 
+#App Layout:
 app.layout = dbc.Container([
       #Header:
       dbc.Row([
@@ -49,13 +49,13 @@ app.layout = dbc.Container([
       #Slider for type of support:
       dbc.Row([
          dbc.Col([
-         typesupport, html.Br(), fininstrument, 
+         typesupport, html.Br(), fininstrument,
          html.Br(), map_select], width=6)], justify = "center"),
       dbc.Row([
             dcc.Graph(id = "map")]),
       #Dropdown for country:
       dbc.Row([
-         dbc.Col([ 
+         dbc.Col([
          country_dropdown, html.Br(),
          ], width = 6),
       ], justify = "center"),
@@ -64,13 +64,13 @@ app.layout = dbc.Container([
       dbc.Row([
          dcc.Graph(id='pie', style={'textAlign': 'center'}),
       ]),
-      
+
       dbc.Row([
             dbc.Col([dcc.Graph(id = "BarBiMulti")]),
             dbc.Col([dcc.Graph(id = "BarHaushalt")]),
             ]),
     ])
-   
+
 @app.callback(
     Output("fininstrument", "options"),
     Input(typesupport, 'value'),
@@ -129,8 +129,8 @@ def update_graph_1(typesupport_slider, fin_instrument, map_select, selected_coun
       figMap = px.choropleth()
    else:
       if map_select == "Länder":
-         figMap = px.choropleth(dat_map, locations ="ISOCode", locationmode="ISO-3", 
-                             hover_data= ["Recipient"], color_continuous_scale="Viridis", color="Klimafinanzierung", 
+         figMap = px.choropleth(dat_map, locations ="ISOCode", locationmode="ISO-3",
+                             hover_data= ["Recipient"], color_continuous_scale="Viridis", color="Klimafinanzierung",
                              range_color=(min(dat_map["Klimafinanzierung"]), max(dat_map["Klimafinanzierung"]*0.05)))
       else:
          df_kon = dat_fil.groupby(["CONTINENT"])["Klimafinanzierung"].sum().reset_index()
@@ -165,7 +165,7 @@ def update_graph_1(typesupport_slider, fin_instrument, map_select, selected_coun
       #Only show projects that are above 0:
       figPie = px.pie(datPie[datPie["Klimafinanzierung"] > 0],
                       values='Klimafinanzierung', names='Sector')
-      
+
    #Show pie chart without title and axis:
    figPie.update_layout(yaxis={'title': ""}, xaxis={'title': ""})
 
